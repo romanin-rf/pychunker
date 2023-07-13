@@ -1,0 +1,6 @@
+from pathlib import Path
+from typing import IO, Tuple, Union
+
+# ! FP Functions
+def initfp(fp: Union[str, Path, IO[bytes]]) -> Tuple[str, IO[bytes]]: ...
+def iocopy(from_io: IO[bytes], to_io: IO[bytes], size: int, buffer_size: int=4096) -> None: ...
