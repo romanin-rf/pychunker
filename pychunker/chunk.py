@@ -20,9 +20,7 @@ class Chunk:
     def __str__(self) -> str: return f"{self.__class__.__name__}(name={repr(self.__name)}, mode={repr(self.__mode)}, size={repr(self.size)})"
     def __repr__(self) -> str: return self.__str__()
     def __enter__(self): return self
-    def __exit__(self, exc_type, exc_value, trace) -> None:
-        if not self.closed:
-            self.close()
+    def __exit__(self, exc_type, exc_value, trace) -> None: pass
     
     # ! Property
     @property

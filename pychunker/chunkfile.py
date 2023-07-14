@@ -155,19 +155,22 @@ class ChunkFile:
                 return True
         return False
     
-    def create_chunk(self, name: str) -> None:
+    def get_chunk(self, name: str) -> Chunk:
+        return self.__getitem__(name)
+    
+    def create_chunk(self, name: str) -> Chunk:
         assert len(name) <= self.__cns
         assert not self.exists_chunk(name)
         if self.mode == "r":
             raise IOReadOnlyError()
-        self.__chunks.append(
-            Chunk(
-                name.ljust(self.__cns), 
-                TemporaryFile("wb+", suffix="chunk"),
-                mode=self.__mode,
-                chunk_name_size=self.__cns
-            )
+        chunk = Chunk(
+            name.ljust(self.__cns), 
+            TemporaryFile("wb+", suffix="chunk"),
+            mode=self.__mode,
+            chunk_name_size=self.__cns
         )
+        self.__chunks.append(chunk)
+        return chunk
     
     # ! IO Vars
     @property
