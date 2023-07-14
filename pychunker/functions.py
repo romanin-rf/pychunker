@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from .crc import CRC32
 
 # ! Functions
 def initfp(fp):
@@ -19,10 +20,14 @@ def initfp(fp):
         assert isinstance(fp.name, str)
         return fp.name, fp
 
-def iocopy(from_io, to_io, size, buffer_size=4096) -> None:
+def iocopy(from_io, to_io, size, buffer_size=8192):
+    crc = CRC32()
     while size > 0:
         if size >= buffer_size:
             rsize, size = buffer_size, size - buffer_size
         else:
             rsize, size = size, 0
-        to_io.write(from_io.read(rsize))
+        d: bytes = from_io.read(rsize)
+        crc.update(d)
+        to_io.write(d)
+    return crc

@@ -1,5 +1,5 @@
-# > Typing
 from typing import IO, List, Iterable, Optional, Literal
+from .exceptions import IOReadOnlyError
 
 # ! Main Class
 class Chunk:
@@ -53,24 +53,40 @@ class Chunk:
     def seekable(self) -> bool: return True and (not self.__io.closed)
     def writable(self) -> bool: return True and (not self.__io.closed) and (self.__mode != "r")
     
-    def read(self, __n: int=-1) -> bytes: return self.__io.read(__n)
-    def readline(self, __limit: int=-1) -> bytes: return self.__io.readline(__limit)
-    def readlines(self, __hint: int=-1) -> List[bytes]: return self.__io.readlines(__hint)
+    def read(self, __n: int=-1) -> bytes:
+        return self.__io.read(__n)
     
-    def tell(self) -> int: return self.__io.tell()
-    def seek(self, __offset: int, __whence: int=0) -> int: return self.__io.seek(__offset, __whence)
+    def readline(self, __limit: int=-1) -> bytes:
+        return self.__io.readline(__limit)
+    
+    def readlines(self, __hint: int=-1) -> List[bytes]:
+        return self.__io.readlines(__hint)
+    
+    def tell(self) -> int:
+        return self.__io.tell()
+    
+    def seek(self, __offset: int, __whence: int=0) -> int:
+        return self.__io.seek(__offset, __whence)
     
     def write(self, __s: bytes) -> int:
-        assert self.__mode != "r"
+        if self.__mode == "r":
+            raise IOReadOnlyError()
         return self.__io.write(__s)
+    
     def writelines(self, __lines: Iterable[bytes]) -> None:
-        assert self.__mode != "r"
+        if self.__mode == "r":
+            raise IOReadOnlyError()
         return self.__io.writelines(__lines)
+    
     def flush(self) -> None:
-        assert self.__mode != "r"
+        if self.__mode == "r":
+            raise IOReadOnlyError()
         return self.__io.flush()
+    
     def truncate(self, __size: Optional[int]=None) -> int:
-        assert self.__mode != "r"
+        if self.__mode == "r":
+            raise IOReadOnlyError()
         return self.__io.truncate(__size)
     
-    def close(self) -> None: return self.__io.close()
+    def close(self) -> None:
+        return self.__io.close()
