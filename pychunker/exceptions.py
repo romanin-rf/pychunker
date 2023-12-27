@@ -2,9 +2,9 @@ from typing import Generator, Any, Optional, Tuple
 
 # ! Base Class
 class ErrorBase(Exception):
-    """ """
+    """The base class of the error."""
     def __init__(self, *args, **kwargs) -> None:
-        """ """
+        """The base class of the error."""
         self.__init__()
         self.args: Tuple[str, ...] = tuple([arg for arg in self.exception(*args, **kwargs) if arg is not None])
     

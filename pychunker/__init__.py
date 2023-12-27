@@ -1,9 +1,18 @@
 from .crc import CRC32
-from .chunkfile import ChunkFile
-from .exceptions import (
-    IOReadOnlyError,
-    ChunkIsDamagedError,
-    IsNotChunkFile
-)
+from .chunk import Chunk
+from .chunkfile import ChunkFile, opencf
+from .functions import otempfile, obytesio
+from .exceptions import ChunkIsDamagedError, IsNotChunkFile, IOReadOnlyError
 
-open = ChunkFile.open
+
+__all__ = [
+    'opencf',
+    'obytesio',
+    'otempfile',
+    'ChunkFile',
+    'Chunk',
+    'CRC32',
+    'ChunkIsDamagedError',
+    'IOReadOnlyError',
+    'IsNotChunkFile'
+]

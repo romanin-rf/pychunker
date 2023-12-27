@@ -17,17 +17,26 @@ class Chunk:
         self.__cns: int = chunk_name_size
     
     # ! Magic Methods
-    def __str__(self) -> str: return f"{self.__class__.__name__}(name={repr(self.__name)}, mode={repr(self.__mode)}, size={repr(self.size)})"
-    def __repr__(self) -> str: return self.__str__()
-    def __enter__(self): return self
-    def __exit__(self, exc_type, exc_value, trace) -> None: pass
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(name={repr(self.__name)}, mode={repr(self.__mode)}, size={repr(self.size)})"
+    
+    def __repr__(self) -> str:
+        return self.__str__()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, trace) -> None:
+        pass
     
     # ! Property
     @property
-    def name(self) -> str: return self.__name
+    def name(self) -> str:
+        return self.__name
     
     @property
-    def mode(self) -> Literal["a", "r", "w"]: return self.__mode
+    def mode(self) -> Literal["a", "r", "w"]:
+        return self.__mode
     
     @property
     def size(self) -> int:
@@ -44,12 +53,18 @@ class Chunk:
     
     # ! IO Vars
     @property
-    def closed(self) -> bool: return self.__io.closed
+    def closed(self) -> bool:
+        return self.__io.closed
     
     # ! IO Functions
-    def readable(self) -> bool: return True and (not self.__io.closed)
-    def seekable(self) -> bool: return True and (not self.__io.closed)
-    def writable(self) -> bool: return True and (not self.__io.closed) and (self.__mode != "r")
+    def readable(self) -> bool:
+        return not self.__io.closed
+    
+    def seekable(self) -> bool:
+        return not self.__io.closed
+    
+    def writable(self) -> bool:
+        return (not self.__io.closed) and (self.__mode != "r")
     
     def read(self, __n: int=-1) -> bytes:
         return self.__io.read(__n)
