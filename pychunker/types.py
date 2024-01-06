@@ -1,15 +1,29 @@
-from typing import Literal, Union
+from pathlib import Path
+from io import BytesIO, BufferedRandom
+from typing import (
+    TypeVar,
+    Generator,
+    Union,
+    Literal,
+    Optional,
+    IO,
+    Any
+)
 
-# ! IO Modes
-TextModeUpdating = Literal["r+", "+r", "rt+", "r+t", "+rt", "tr+", "t+r", "+tr", "w+", "+w", "wt+", "w+t", "+wt", "tw+", "t+w", "+tw", "a+", "+a", "at+", "a+t", "+at", "ta+", "t+a", "+ta", "x+", "+x", "xt+", "x+t", "+xt", "tx+", "t+x", "+tx"]
-TextModeWriting = Literal["w", "wt", "tw", "a", "at", "ta", "x", "xt", "tx"]
-TextModeReading = Literal["r", "rt", "tr", "U", "rU", "Ur", "rtU", "rUt", "Urt", "trU", "tUr", "Utr"]
-BinaryModeUpdating = Literal["rb+", "r+b", "+rb", "br+", "b+r", "+br", "wb+", "w+b", "+wb", "bw+", "b+w", "+bw", "ab+", "a+b", "+ab", "ba+", "b+a", "+ba", "xb+", "x+b", "+xb", "bx+", "b+x", "+bx"]
-BinaryModeWriting = Literal["wb", "bw", "ab", "ba", "xb", "bx"]
-BinaryModeReading = Literal["rb", "br", "rbU", "rUb", "Urb", "brU", "bUr", "Ubr"]
-TextMode = Union[TextModeUpdating, TextModeWriting, TextModeReading]
-BinaryMode = Union[BinaryModeUpdating, BinaryModeWriting, BinaryModeReading]
+# ! Type Vars
+T = TypeVar('T')
+AT = TypeVar('AT')
+KT = TypeVar('KT')
+
+# ! Error Types
+ErrorTextReturnType = Generator[Optional[str], Any, None]
+
+# ! IO Types
+FPType = Union[str, Path, BytesIO, BufferedRandom, IO[bytes]]
+
+# ! Chunk File Modes Types
 CFReadMode = Literal['r']
 CFWriteMode = Literal['w']
-CFUpdateMode = Literal['a']
-CFMode = Union[CFReadMode, CFWriteMode, CFUpdateMode]
+CFReadUpdateMode = Literal['r+', '+r']
+CFWriteUpdateMode = Literal['w+', '+w']
+CFMode = Union[CFReadMode, CFReadUpdateMode, CFWriteMode, CFWriteUpdateMode]

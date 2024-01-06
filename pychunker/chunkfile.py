@@ -1,292 +1,166 @@
-from pathlib import Path
+import sys
+from tempfile import TemporaryFile
 from io import BytesIO, DEFAULT_BUFFER_SIZE
 # > Typing
-from typing import IO, Union, List, Literal, Callable, final
-# > Local Import's
-from .types import CFMode, BinaryModeUpdating
+from types import TracebackType
+from typing import Optional, IO, Callable, Literal, List
+# > Local Imports
+from .crc import CRC32
 from .chunk import Chunk
+from .types import CFMode, FPType
 from .units import DEFAULT_CHUNK_FILE_SIGNATURE
-from .functions import (
-    iocopy, initfp, otempfile, formater
-)
-from .exceptions import (
-    ChunkIsDamagedError,
-    IsNotChunkFile,
-    IOReadOnlyError
-)
+from .functional import initfp, is_cfmode, iocopy, hasitem, formater
+from .exceptions import IsNotChunkFileError, IONotWritableError, ChunkIsDamagedError
+
+# ! Main Class Functions
+def otempfile():
+    return TemporaryFile("wb+", suffix="chunk")
+
+def obytesio():
+    return BytesIO()
 
 # ! Main Class
-@final
 class ChunkFile:
-    """The class of the chunk file."""
+    # ! Private Initialization Methods
     def __ischunkfile(self) -> bool:
         self.__io.seek(0)
         return self.__io.read(len(self.__cfs)) == self.__cfs
     
     def __initchunkfile(self) -> None:
         if not self.__ischunkfile():
-            raise IsNotChunkFile()
-        
+            return IsNotChunkFileError()
         self.__io.seek(len(self.__cfs))
-        
-        while len(b_size:=self.__io.read(self.__cls)) != 0:
-            cio = self.__coiom("w+b")
-            size = int.from_bytes(b_size, 'big')
-            name = self.__io.read(self.__cns).decode(errors="ignore")
-            
-            ccrc = iocopy(self.__io, cio, size, self.__bfs)
-            fcrc = int.from_bytes(self.__io.read(4), 'big')
-            
-            if fcrc == int(ccrc):
-                self.__chunks.append(
-                    Chunk(
-                        name, cio, self.__mode,
-                        chunk_name_size=self.__cns
-                    )
-                )
-            else:
-                if not self.__icrc:
-                    raise ChunkIsDamagedError(fcrc, ccrc)
+        size_data = self.__io.read(self.__cls)
+        while len(size_data) > 0:
+            size = int.from_bytes(size_data, self.__bord)
+            name = self.__io.read(self.__cns).decode(self.__encoding, self.__errors)
+            cio = self.__openio()
+            currect_crc = iocopy(self.__io, cio, size, self.__bfs, self.__bord)
+            file_crc = CRC32.from_bytes(self.__io.read(4), self.__bord)
+            if (int(file_crc) != int(currect_crc)) and (not self.__icrc):
+                raise ChunkIsDamagedError()
+            self.__chunks.append(Chunk(name, cio, self.__mode, chunk_name_size=self.__cns))
+            size_data = self.__io.read(self.__cls)
     
+    # ! Initialization
     def __init__(
         self,
-        fp: Union[str, Path, IO[bytes]],
-        mode: CFMode,
+        fp: FPType,
+        mode: CFMode='r',
         *,
         buffer_size: int=DEFAULT_BUFFER_SIZE,
         chunk_file_signature: bytes=DEFAULT_CHUNK_FILE_SIGNATURE,
         chunk_name_size: int=4,
         chunk_length_size: int=4,
-        ignore_crc: bool=False,
-        openio: Callable[[BinaryModeUpdating], IO[bytes]]=otempfile,
+        openio: Callable[[], IO[bytes]]=otempfile,
+        encoding: str='utf-8',
+        errors: str='strict',
+        byteorder: Literal['little', 'big']=sys.byteorder,
+        ignore_crc: bool=False
     ) -> None:
-        """The class of the chunk file (`!!! USE THE 'open' METHOD !!!`).
-        
-        Args:
-            fp (Union[str, Path, IO[bytes]]): The path or the open file.
-            mode (CFMode, optional): The access mode of opening the file. Defaults to "r".
-            buffer_size (int, optional): The size of the temporary buffer. Defaults to 8192.
-            chunk_file_signature (bytes, optional): The signature of the chunk file. Defaults to DEFAULT_CHUNK_FILE_SIGNATURE.
-            chunk_name_size (int, optional): The length of the chunk name. Defaults to 4.
-            chunk_length_size (int, optional): The length of the byte string indicating the size of the data in the chunk. Defaults to 4.
-            ignore_crc (bool, optional): Ignore the checksum (CRC32). Defaults to False.
-            openio (Callable[[BinaryModeUpdating], IO[bytes]], optional): A function that opens a temporary IO for a chunk. Defaults to otempfile.
-        
-        Raises:
-            IsNotChunkFile: Called if the file is not a chunk file.
-            ChunkIsDamagedError: Called if the checksum does not match when reading chunks.
-        """
+        assert is_cfmode(mode)
         self.__name, self.__io = initfp(fp, mode)
-        self.__mode: Literal["a", "r", "w"] = mode
+        self.__mode = mode
         self.__chunks: List[Chunk] = []
         self.__bfs: int = buffer_size
         self.__cfs: bytes = chunk_file_signature
         self.__cns: int = chunk_name_size
         self.__cls: int = chunk_length_size
-        self.__coiom = openio
-        self.__icrc = ignore_crc
-        
-        # ! Initialize Chunk File
+        self.__openio = openio
+        self.__encoding = encoding
+        self.__errors = errors
+        self.__bord = byteorder
+        self.__icrc: bool = ignore_crc
         self.__initchunkfile()
     
-    @staticmethod
-    def create(
-        fp: Union[str, Path, IO[bytes]],
-        mode: CFMode,
-        *,
-        buffer_size: int=DEFAULT_BUFFER_SIZE,
-        chunk_file_signature: bytes=DEFAULT_CHUNK_FILE_SIGNATURE,
-        chunk_name_size: int=4,
-        chunk_length_size: int=4,
-        ignore_crc: bool=False,
-        openio: Callable[[BinaryModeUpdating], IO[bytes]]=otempfile
-    ):
-        """The class of the chunk file (`!!! USE THE 'open' METHOD !!!`).
-        
-        Args:
-            fp (Union[str, Path, IO[bytes]]): The path or the open file.
-            mode (CFMode, optional): The access mode of opening the file. Defaults to "r".
-            buffer_size (int, optional): The size of the temporary buffer. Defaults to 8192.
-            chunk_file_signature (bytes, optional): The signature of the chunk file. Defaults to DEFAULT_CHUNK_FILE_SIGNATURE.
-            chunk_name_size (int, optional): The length of the chunk name. Defaults to 4.
-            chunk_length_size (int, optional): The length of the byte string indicating the size of the data in the chunk. Defaults to 4.
-            ignore_crc (bool, optional): Ignore the checksum (CRC32). Defaults to False.
-            openio (Callable[[BinaryModeUpdating], IO[bytes]], optional): A function that opens a temporary IO for a chunk. Defaults to otempfile.
-        
-        Raises:
-            IsNotChunkFile: Called if the file is not a chunk file.
-            ChunkIsDamagedError: Called if the checksum does not match when reading chunks.
-        
-        Returns:
-            ChunkFile: The class of the chunk file.
-        """
-        name, cfio = initfp(fp, mode)
-        
-        cfio.seek(0)
-        cfio.write(chunk_file_signature)
-        
-        return ChunkFile(
-            cfio, mode,
-            buffer_size=buffer_size,
-            chunk_file_signature=chunk_file_signature,
-            chunk_name_size=chunk_name_size,
-            chunk_length_size=chunk_length_size,
-            ignore_crc=ignore_crc,
-            openio=openio
-        )
+    # ! ChunkFile Private Methods
+    def __GetChunk(self, name: str) -> Optional[Chunk]:
+        for chunk in self.__chunks:
+            if chunk.name == name:
+                return chunk
     
     # ! Magic Methods
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}({formater(name=self.__name, mode=self.__mode)})"
+        return formater(name=self.__name, mode=self.__mode)
     
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{self.__class__.__name__}({self.__str__()})"
     
-    def __getitem__(self, key: str) -> Chunk:
-        for chunk in self.__chunks:
-            if key == chunk.name:
-                return chunk
-        raise KeyError(key)
+    def __getitem__(self, key: str):
+        chunk = self.__GetChunk(key)
+        if chunk is None:
+            if not self.writable():
+                raise IONotWritableError()
+            chunk = Chunk(key, self.__openio(), self.__mode)
+            self.__chunks.append(chunk)
+        return chunk
     
     def __enter__(self):
         return self
     
-    def __exit__(self, exc_type, exc_value, trace) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType]
+    ) -> None:
         self.close()
     
-    # ! Vars
-    @property
-    def name(self) -> str:
-        """The path to the file.
-        
-        Returns:
-            str: This filepath.
-        """
-        return self.__name
+    # ! Private IO Methods
+    def __ioflush(self) -> None:
+        self.__ioclear()
+        self.__io.seek(0)
+        self.__io.write(self.__cfs)
+        for chunk in self.__chunks:
+            if not chunk.closed:
+                self.__io.write(chunk.size.to_bytes(self.__cls, self.__bord))
+                self.__io.write(chunk.name.encode(self.__encoding, self.__errors))
+                chunk.seek(0)
+                crc = iocopy(chunk._io, self.__io, chunk.size, self.__bfs, self.__bord)
+                self.__io.write(bytes(crc))
     
+    def __ioclear(self) -> None:
+        self.__io.seek(0)
+        self.__io.truncate(0)
+    
+    # ! Propertyes
     @property
-    def chunks(self) -> List[Chunk]:
-        """A list of chunks.
-        
-        Returns:
-            List[Chunk]: A list of chunks.
-        """
-        return self.__chunks
+    def name(self) -> Optional[str]:
+        return self.__name
     
     @property
     def mode(self) -> CFMode:
         return self.__mode
     
-    # ! Functions
-    def exists_chunk(self, name: str) -> bool:
-        for chunk in self.__chunks:
-            if chunk.name == name:
-                return True
-        return False
+    @property
+    def chunks(self) -> List[Chunk]:
+        return self.__chunks
     
-    def get_chunk(self, name: str) -> Chunk:
+    # ! ChunkFile Methods
+    def chunk(self, name: str) -> Chunk:
         return self.__getitem__(name)
     
-    def create_chunk(self, name: str) -> Chunk:
-        assert len(name) <= self.__cns
-        assert not self.exists_chunk(name)
-        if self.mode == "r":
-            raise IOReadOnlyError()
-        chunk = Chunk(
-            name.ljust(self.__cns), 
-            self.__coiom("wb+"),
-            mode=self.__mode,
-            chunk_name_size=self.__cns
-        )
-        self.__chunks.append(chunk)
-        return chunk
+    # ! IO Methods
+    def readable(self) -> bool:
+        return hasitem(self.__mode, 'r+')
     
-    # ! IO Vars
-    @property
-    def closed(self) -> bool:
-        return self.__io.closed
+    def seekable(self) -> bool:
+        return self.__io.seekable()
     
-    # ! IO Functions
-    def __ioclear(self) -> None:
-        if self.__mode != "r":
-            if not self.__io.closed:
-                self.__io.close()
-            if self.__name is not None:
-                self.__io = open(self.__name, "wb+")
-            else:
-                self.__io = BytesIO()
-        else:
-            raise IOReadOnlyError()
+    def writable(self) -> bool:
+        return hasitem(self.__mode, 'w+')
     
     def flush(self) -> None:
-        if self.__mode != "r":
-            assert not self.__io.closed
-            self.__ioclear()
-            self.__io.seek(0)
-            self.__io.write(self.__cfs)
-            for chunk in self.__chunks:
-                if not chunk.closed:
-                    self.__io.write(chunk.size.to_bytes(self.__cls, 'big'))
-                    self.__io.write(chunk.name.encode(errors="ignore"))
-                    chunk.seek(0)
-                    crc = iocopy(chunk, self.__io, chunk.size)
-                    self.__io.write(bytes(crc))
-        else:
-            raise IOReadOnlyError()
+        assert not self.__io.closed
+        if not self.writable():
+            raise IONotWritableError()
+        self.__ioflush()
     
     def close(self) -> None:
-        if self.__mode != "r":
+        if self.writable():
             self.flush()
         for chunk in self.__chunks:
             if not chunk.closed:
                 chunk.close()
         if not self.__io.closed:
             self.__io.close()
-
-# ! Main Open Method
-def opencf(
-    fp: Union[str, Path, IO[bytes]],
-    mode: CFMode="a",
-    *,
-    buffer_size: int=DEFAULT_BUFFER_SIZE,
-    chunk_file_signature: bytes=DEFAULT_CHUNK_FILE_SIGNATURE,
-    chunk_name_size: int=4,
-    chunk_length_size: int=4,
-    ignore_crc: bool=False,
-    openio: Callable[[BinaryModeUpdating], IO[bytes]]=otempfile
-) -> ChunkFile:
-    """Opening a chuck file.
-    
-    Args:
-        fp (Union[str, Path, IO[bytes]]): The path or the open file.
-        mode (CFMode, optional): The access mode of opening the file. Defaults to "r".
-        buffer_size (int, optional): The size of the temporary buffer. Defaults to 8192.
-        chunk_file_signature (bytes, optional): The signature of the chunk file. Defaults to DEFAULT_CHUNK_FILE_SIGNATURE.
-        chunk_name_size (int, optional): The length of the chunk name. Defaults to 4.
-        chunk_length_size (int, optional): The length of the byte string indicating the size of the data in the chunk. Defaults to 4.
-        ignore_crc (bool, optional): Ignore the checksum (CRC32). Defaults to False.
-        openio (Callable[[BinaryModeUpdating], IO[bytes]], optional): A function that opens a temporary IO for a chunk. Defaults to otempfile.
-    
-    Raises:
-        IsNotChunkFile: Called if the file is not a chunk file.
-        ChunkIsDamagedError: Called if the checksum does not match when reading chunks.
-        ValueError: Called if 'mode' was specified incorrectly.
-    
-    Returns:
-        ChuckFile: The class of the chunk file.
-    """
-    if (mode == "r") or (mode == "a"):
-        fpopen = ChunkFile
-    elif mode == "w":
-        fpopen = ChunkFile.create
-    else:
-        raise ValueError(f"The 'mode' argument cannot be equal: {repr(mode)}.")
-    return fpopen(
-        fp, mode,
-        buffer_size=buffer_size,
-        chunk_file_signature=chunk_file_signature,
-        chunk_name_size=chunk_name_size,
-        chunk_length_size=chunk_length_size,
-        ignore_crc=ignore_crc,
-        openio=openio
-    )

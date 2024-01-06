@@ -12,18 +12,26 @@ pip install pychunker
 ```python
 import pychunker
 
-with pychunker.opencf("chunkfile.bin", "w") as cf:
-    with cf.create_chunk("DDAT") as ddat:
+with pychunker.open("chunkfile.bin", "w") as cf:
+    # The chunk can be used via `with'.
+    with cf.chunk("DDAT") as ddat:
         ddat.write(b'1234567890')
     
-    with cf.create_chunk("SDAT") as sdat:
-        sdat.write(b'Hello World!')
+    # Or by contacting the key (name of the chunk).
+    cf["SDAT"].write(b'Hello World!')
 
-with pychunker.opencf("chunkfile.bin") as cf:
+# !!! Attention !!!
+# Both types of treatment use the same methods,
+# namely that if you open a chunk file in read-only mode,
+# and if the chunk is not in the chunk file,
+# he will try to create a chunk,
+# but he will not be able to do this and will give a `IONotWritableError`.
+
+with pychunker.open("chunkfile.bin") as cf:
     print(cf.chunks)
 ```
 
-- `output`:
+- `Output`:
 ```python
->>> [Chunk(name='DDAT', mode='a', size=10), Chunk(name='SDAT', mode='a', size=12)]
+[Chunk(name='DDAT', mode='r', size=10), Chunk(name='SDAT', mode='r', size=12)]
 ```

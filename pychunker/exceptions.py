@@ -1,26 +1,38 @@
-from typing import Generator, Any, Optional, Tuple
+from typing import Generic
+from .types import AT, KT, ErrorTextReturnType
+from .units import CHUNKFILE_MODES
 
-# ! Base Class
-class ErrorBase(Exception):
+# ! Base Error Class
+class Error(Exception, Generic[AT, KT]):
     """The base class of the error."""
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: AT, **kwargs: KT) -> None:
         """The base class of the error."""
-        self.__init__()
-        self.args: Tuple[str, ...] = tuple([arg for arg in self.exception(*args, **kwargs) if arg is not None])
+        super().__init__()
+        self.args = tuple(" ".join([arg for arg in self.__text__(*args, **kwargs) if arg is not None]))
     
-    def exception(self, *args, **kwargs) -> Generator[Optional[str], Any, None]:
-        yield None
+    def __text__(self, *args: AT, **kwargs: KT) -> ErrorTextReturnType:
+        """Error text generator.
+        
+        Returns:
+            ErrorTextReturnType: A generator with strings.
+        """
+        yield
 
-# ! ChunkFile Errors
-class ChunkIsDamagedError(ErrorBase):
-    def exception(self, file_crc: int, chunk_crc: int, *args, **kwargs):
-        yield f"The checksum of the read chunk does not match the checksum of the one written in the chunk file ({repr(file_crc)} != {repr(chunk_crc)})."
+# ! Chunkfile Errors
+class IsNotChunkFileError(Error):
+    def __text__(self, *args, **kwargs):
+        yield "The IO you have opened is not a chunkfile."
 
-class IsNotChunkFile(ErrorBase):
-    def exception(self, *args, **kwargs):
-        yield "The signature of the file is not equal to the signature of the specified chunk file."
+class IsNotChunkFileModeError(Error[str, str]):
+    def __text__(self, mode: str, *args, **kwargs):
+        yield f"This mode value is not supported by the chunkfile: {repr(mode)}."
+        yield f"Use anyone from this list: {', '.join([repr(cfmode) for cfmode in CHUNKFILE_MODES])}."
+
+class ChunkIsDamagedError(Error):
+    def __text__(self, *args, **kwargs):
+        yield "The chunk is damaged."
 
 # ! IO Errors
-class IOReadOnlyError(ErrorBase):
-    def exception(self, *args, **kwargs):
-        yield "This IO is open in read-only mode."
+class IONotWritableError(Error):
+    def __text__(self, *args, **kwargs):
+        yield "This IO is open in a mode that does not provide for writing."
